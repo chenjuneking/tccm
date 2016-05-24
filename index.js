@@ -6,6 +6,7 @@
     cd to/the/path/of/your/component
     tccm version 0.0.1                             # update the version
     tccm publish                                   # publish the component
+    tccm get lazyload-0.0.1                        # download the component
 */
 
 var log = console.log;
@@ -34,6 +35,8 @@ function parseArgs (args) {
       if (item[0] == '--set-origin') _o.origin = item[1];
     } else if (/^\d+\.\d+\.\d+$/.test(item)) {
       _o.setVersionTo = item;
+    } else if (/^[a-zA-Z0-9_\-@#\.]+$/.test(item)) {
+      _o.get = item;
     }
   }
   return _o;
@@ -49,6 +52,7 @@ Tccm.prototype.getHelpInfo = function () {
   log('  tccm config --set-origin=http://example.com - Set the origin host.');
   log('  tccm version [<version>] - Update the component\'s version.');
   log('  tccm publish - Publish the component.');
+  log('  tccm get [<component>] - Download the component');
   log('Options:');
   log('  --help or -h      Print commands and options.');
   log('  --version or -v   Print current versions.');
@@ -74,16 +78,24 @@ Tccm.prototype.updateVersion = function () {
   });
 }
 Tccm.prototype.publish = function () {
-  var host, info;
+  var host;
   try {
     host = require(_p.join(__dirname, 'config.json')).origin;
   } catch (e) {
     return log('Error: Can\'t find config.json, please run \'tccm config --set-origin=[<host>] \' before publish.');
   }
-  var host = require(_p.join(__dirname, 'config.json')).origin;
   var info = require(_p.join(cwd, 'info.json'));
   var tarFilePath = _p.join('/tmp', info.name + '-' + info.version + '.tar');
   var ws = fs.createWriteStream(tarFilePath);
+  ws.on('finish', function () {
+    superagent
+      .post(host + '/upload')
+      .attach('file', tarFilePath)
+      .end(function (err, res) {
+        if (err) return log(err);
+        log(' - component successfully uploaded!');
+      });
+  })
 
   function onError (err) {
     log('An error occurred: ', err);
@@ -99,15 +111,36 @@ Tccm.prototype.publish = function () {
     .on('error', onError)
     .pipe(packer)
     .pipe(ws);
+}
+Tccm.prototype.get = function () {
+  var path = _p.join(cwd, args.get + '.tar'), host;
+  try {
+    host = require(_p.join(__dirname, 'config.json')).origin;
+  } catch (e) {
+    return log('Error: Can\'t find config.json, please run \'tccm config --set-origin=[<host>] \' before download components.');
+  }
+
+  var ws = fs.createWriteStream(path);
+  ws.on('finish', function () {
+    var extractor = tar.Extract({ path: _p.join(cwd) })
+      .on('error', function (err) {
+        log('An error accurred: ', err);
+      })
+      .on('end', function () {
+        fs.unlinkSync(path);
+        log(' + component - ' + args.get);
+      });
+
+    fs.createReadStream(path)
+      .on('error', function (err) {
+        log('An error accurred: ', err);
+      })
+      .pipe(extractor);
+  });
 
   superagent
-    .post(host + '/upload')
-    .set('Content-Type', 'multipart/form-data')
-    .attach('file', tarFilePath)
-    .end(function (err, res) {
-      if (err) return log(err);
-      log(' - component successfully uploaded!');
-    });
+    .get(host + '/components/' + args.get + '.tar')
+    .pipe(ws);
 }
 
 var tccm = new Tccm;
@@ -116,6 +149,7 @@ var Do = {
   'version': tccm.updateVersion,
   'publish': tccm.publish,
   'config': tccm.config,
+  'get': tccm.get,
   '-h': tccm.getHelpInfo,
   '--help': tccm.getHelpInfo,
   '-v': tccm.getVersion,
