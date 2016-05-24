@@ -1,6 +1,6 @@
 {
   "name": "tccm",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "同策前端组件助手",
   "dependencies": {
     "tar": "2.2.1",
