@@ -93,6 +93,7 @@ Tccm.prototype.publish = function () {
       .attach('file', tarFilePath)
       .end(function (err, res) {
         if (err) return log(err);
+        fs.unlinkSync(tarFilePath);
         log(' - component successfully uploaded!');
       });
   })
