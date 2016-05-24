@@ -74,6 +74,12 @@ Tccm.prototype.updateVersion = function () {
   });
 }
 Tccm.prototype.publish = function () {
+  var host, info;
+  try {
+    host = require(_p.join(__dirname, 'config.json')).origin;
+  } catch (e) {
+    return log('Error: Can\'t find config.json, please run \'tccm config --set-origin=[<host>] \' before publish.');
+  }
   var host = require(_p.join(__dirname, 'config.json')).origin;
   var info = require(_p.join(cwd, 'info.json'));
   var tarFilePath = _p.join('/tmp', info.name + '-' + info.version + '.tar');
