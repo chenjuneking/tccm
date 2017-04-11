@@ -1,6 +1,6 @@
 {
   "name": "tccm",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "A component manager, should work with the server side",
   "dependencies": {
     "archiver": "1.3.0",
